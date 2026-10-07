@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Colour Match Networking</title>
+<style>
+/* Layout: a fixed 16:9 stage with the untouched illustration full-bleed; one comic-outlined white panel sits over the shirts, below the faces. Single look by design. */
+:root {
+  --ink: #000000;
+  --paper: #ffffff;
+  --mute: #5c5c5c;
+  --well: #f1f1f1;
+  --magenta: #ea3bb8;
+  --alert: #eb4f27;
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: #0d0d0d; color: var(--ink);
+  font-family: var(--font); font-weight: 700;
+  display: grid; place-items: center; overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.stage {
+  position: relative; width: min(100vw, calc(100dvh * 16 / 9)); max-width: 100%;
+  aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; background: #0488c4;
+}
+.stage.idle-cursor { cursor: none; }
+.bg { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; display: block; user-select: none; pointer-events: none; }
+
+/* Logos: stacked on the dark hair, top-right, where white reads cleanly */
+.logos { position: absolute; top: 2.6cqw; right: 3.4cqw; display: flex; flex-direction: column; align-items: flex-end; gap: 1.6cqw; pointer-events: none; }
+.logos img { display: block; max-width: none; filter: drop-shadow(0 0 .4cqw rgba(0, 20, 30, .35)); }
+.logo-1 { width: 8.6cqw; height: auto; }
+.logo-2 { width: 13.5cqw; height: auto; }
+
+/* Panel */
+.panel {
+  position: absolute; left: 24cqw; width: 52cqw; top: 20cqw; height: 33.2cqw; box-sizing: border-box;
+  background: var(--paper); border: .28cqw solid var(--ink); border-radius: 1.4cqw;
+  box-shadow: .7cqw .7cqw 0 var(--ink);
+  padding: 1.5cqw 2cqw 1.7cqw; display: flex; flex-direction: column; gap: 1.2cqw;
+  transform: scale(1.1); transform-origin: 50% 62%;
+}
+.head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: .16cqw solid var(--ink); padding-bottom: .8cqw; }
+.eyebrow { font-size: 1cqw; letter-spacing: .2em; text-transform: uppercase; }
+.round { font-size: 1.2cqw; font-variant-numeric: tabular-nums; }
+.body { flex: 1; display: grid; grid-template-columns: 25.5cqw 1fr; grid-template-rows: minmax(0, 1fr); gap: 2cqw; min-height: 0; overflow: hidden; }
+
+/* Reels */
+.reels { display: flex; flex-direction: column; justify-content: space-evenly; min-height: 0; }
+.row { display: grid; grid-template-columns: minmax(0,1fr) 2.2cqw minmax(0,1fr); align-items: center; height: 6.2cqw; }
+.chip, .cell { display: flex; align-items: center; gap: .55cqw; font-size: 1.25cqw; white-space: nowrap; }
+.dot { width: 4cqw; height: 4cqw; border-radius: 50%; border: .2cqw solid var(--ink); box-sizing: border-box; flex: none; }
+.dot.blank { background: var(--paper); border-style: dashed; border-color: #b9b9b9; }
+.cell .blank + span { color: #b9b9b9; }
+.amp { text-align: center; font-size: 1.6cqw; }
+.reel { height: 6.2cqw; overflow: hidden; border-radius: .9cqw; background: var(--well); position: relative; }
+.reel::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(var(--well), transparent 22%, transparent 78%, var(--well)); opacity: 0; transition: opacity .2s; }
+.reel.spinning::after { opacity: 1; }
+.reel.landed { animation: land .35s ease-out; }
+@keyframes land { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.strip { will-change: transform; }
+.cell { height: 6.2cqw; padding-left: .6cqw; }
+
+/* Right column */
+.info { display: flex; flex-direction: column; gap: .9cqw; min-width: 0; min-height: 0; overflow: hidden; --qsize: 1.32cqw; }
+.pill { align-self: flex-start; font-size: .95cqw; letter-spacing: .14em; text-transform: uppercase; background: var(--ink); color: var(--paper); padding: .45cqw .95cqw; border-radius: 99px; }
+.pill.paused { background: var(--magenta); }
+.time { font-size: 6.4cqw; line-height: .88; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.time.low { color: var(--alert); }
+.time.dim { opacity: .35; }
+.bar { height: .5cqw; background: #e4e4e4; border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--ink); }
+.big { font-size: 3.4cqw; line-height: 1; letter-spacing: -.02em; text-wrap: balance; }
+.note { font-size: 1.2cqw; line-height: 1.35; color: var(--mute); max-width: 26cqw; text-wrap: pretty; }
+.qlabel { font-size: .9cqw; letter-spacing: .18em; text-transform: uppercase; color: var(--mute); margin-top: .5cqw; }
+.q { display: grid; grid-template-columns: 2.1cqw 1fr; font-size: var(--qsize); line-height: 1.28; text-wrap: pretty; }
+.q b { display: grid; place-items: center; width: 1.5cqw; height: 1.5cqw; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: .85cqw; margin-top: .05cqw; }
+.qs { display: flex; flex-direction: column; gap: .8cqw; }
+.primary {
+  align-self: flex-start; margin-top: auto; font: inherit; font-size: 1.45cqw; cursor: pointer;
+  background: var(--ink); color: var(--paper); border: .2cqw solid var(--ink); border-radius: 99px;
+  padding: .95cqw 2.1cqw; box-shadow: .35cqw .35cqw 0 var(--magenta); transition: transform .12s, box-shadow .12s;
+}
+.primary:hover { transform: translate(-.1cqw, -.1cqw); box-shadow: .45cqw .45cqw 0 var(--magenta); }
+.primary:active { transform: translate(.2cqw, .2cqw); box-shadow: 0 0 0 var(--magenta); }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--magenta); outline-offset: 3px; }
+
+/* Facilitator tools */
+.tools { position: absolute; right: 1.2cqw; bottom: 1.2cqw; display: flex; gap: .6cqw; transition: opacity .4s; }
+.stage.idle-cursor .tools { opacity: 0; }
+.tool { width: max(30px, 2.8cqw); height: max(30px, 2.8cqw); border-radius: 50%; background: var(--paper); border: max(2px, .18cqw) solid var(--ink);
+  display: grid; place-items: center; cursor: pointer; padding: 0; color: var(--ink); }
+.tool svg { width: 52%; height: 52%; }
+.tool:disabled { opacity: .35; cursor: default; }
+.tool[aria-pressed="true"] { background: var(--magenta); }
+
+/* Settings */
+.sheet { position: absolute; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 5; }
+.sheet-card { background: var(--paper); border: .28cqw solid var(--ink); border-radius: 1.4cqw; box-shadow: .7cqw .7cqw 0 var(--ink);
+  width: min(70cqw, calc(100% - 32px)); max-height: 92%; overflow: auto; box-sizing: border-box; padding: max(14px, 1.8cqw);
+  display: flex; flex-direction: column; gap: max(10px, 1cqw); font-size: max(13px, 1.05cqw); }
+.sheet-card h2 { margin: 0; font-size: max(17px, 1.7cqw); }
+.sheet-card p { margin: 0; color: var(--mute); font-weight: 400; line-height: 1.4; }
+.fields { display: flex; gap: max(10px, 1.2cqw); flex-wrap: wrap; }
+.fields label, .qfield { display: flex; flex-direction: column; gap: 4px; }
+.sheet-card input, .sheet-card textarea { font: inherit; font-weight: 400; border: 2px solid var(--ink); border-radius: 8px; padding: 6px 8px; color: var(--ink); background: var(--paper); }
+.sheet-card input { width: 7em; }
+.qhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.qcount { color: var(--mute); font-weight: 400; }
+.qlist { display: flex; flex-direction: column; gap: 8px; max-height: 34cqw; min-height: 120px; overflow: auto; padding: 4px 4px 4px 0; }
+.qrow { display: grid; grid-template-columns: 2em 1fr auto; align-items: center; gap: 8px; }
+.qnum { display: grid; place-items: center; width: 1.7em; height: 1.7em; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: .85em; }
+.qrow input { width: auto; min-width: 0; }
+.qdel { width: 2em; height: 2em; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; font: inherit; line-height: 1; padding: 0; }
+.qdel:hover { background: var(--magenta); }
+.btn.add { align-self: flex-start; }
+.sheet-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.btn { font: inherit; cursor: pointer; border: 2px solid var(--ink); border-radius: 99px; padding: 8px 16px; background: var(--paper); color: var(--ink); }
+.btn.dark { background: var(--ink); color: var(--paper); }
+
+@media (prefers-reduced-motion: reduce) { .reel.landed { animation: none; } .primary { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <img class="bg" src="background.png" alt="Illustration of two women chatting and laughing">
+  <div class="logos">
+    <img class="logo-1" src="logo-1.png" alt="Event partner logo">
+    <img class="logo-2" src="logo-london-acm-siggraph.png" alt="London ACM SIGGRAPH">
+  </div>
+
+  <section class="panel" aria-live="polite">
+    <header class="head">
+      <span class="eyebrow">Speed Networking · Colour Match</span>
+      <span class="round" id="round-label">Round 1 of 8</span>
+    </header>
+    <div class="body">
+      <div class="reels" id="reels"></div>
+      <div class="info" id="info"></div>
+    </div>
+  </section>
+
+  <div class="tools" id="tools">
+    <button class="tool" id="t-pause" title="Pause / resume (P)" aria-label="Pause or resume" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+    <button class="tool" id="t-skip" title="Skip to next stage (N)" aria-label="Skip to next stage">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 5l9 7-9 7z"/><rect x="16" y="5" width="3" height="14" rx="1"/></svg>
+    </button>
+    <button class="tool" id="t-sound" title="Sound on / off" aria-label="Sound on or off" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path id="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+    </button>
+    <button class="tool" id="t-settings" title="Questions and timings" aria-label="Edit questions and timings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg>
+    </button>
+    <button class="tool" id="t-full" title="Full screen (F)" aria-label="Full screen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet" id="sheet" hidden>
+    <form class="sheet-card" id="settings-form">
+      <h2>Questions and timings</h2>
+      <p>Two questions are drawn at random each round, with no repeats until the list runs out. Up to 16 words per question so it always fits on screen. Saved in this browser only.</p>
+      <div class="fields">
+        <label for="s-rounds">Rounds<input id="s-rounds" type="number" min="1" max="20"></label>
+        <label for="s-find">Find time (sec)<input id="s-find" type="number" min="5" max="300"></label>
+        <label for="s-talk">Talk time (min)<input id="s-talk" type="number" min="0.5" max="20" step="0.5"></label>
+      </div>
+      <div class="qhead"><span>Icebreaker questions</span><span class="qcount" id="q-count"></span></div>
+      <div class="qlist" id="q-list"></div>
+      <button type="button" class="btn add" id="q-add">+ Add question</button>
+      <div class="sheet-actions">
+        <button type="button" class="btn" id="s-reset">Restore default questions</button>
+        <button type="button" class="btn" id="s-cancel">Cancel</button>
+        <button type="submit" class="btn dark">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const COLOURS = [
+  { name: 'Magenta', hex: '#ea3bb8' },
+  { name: 'Green',   hex: '#6fef48' },
+  { name: 'Red',     hex: '#eb4f27' },
+  { name: 'Yellow',  hex: '#f3f04f' },
+  { name: 'Orange',  hex: '#ef8532' },
+];
+
+const DEFAULT_QUESTIONS = [
+  "What project are you most proud of, and what made it special?",
+  "What first drew you to the work you do today?",
+  "Who has been a mentor or role model for you, and what did they teach you?",
+  "What's a skill you're learning or sharpening right now?",
+  "What's the best piece of career advice you've ever been given?",
+  "What does a great day at work look like for you?",
+  "Which film, show or game made you want to work in this industry?",
+  "What's a challenge you've overcome that made you stronger?",
+  "If you could work on any project with no limits, what would it be?",
+  "What's something about your job most people would never guess?",
+  "What are you most looking forward to in the next year?",
+  "What advice would you give someone just starting out in your role?",
+  "What keeps you inspired when a deadline is tight?",
+  "What's a piece of work you saw recently and wished you'd made?",
+  "What would you love to learn from someone in a different department?",
+  "How do you recharge after a big delivery or wrap?",
+  "What's a small win you've had this month?",
+  "What positive change would you most like to see in our industry?",
+  "What's a moment on set or in the studio you'll never forget?",
+  "What strength do your colleagues come to you for?",
+  "If your career were a film, what would this chapter be called?",
+  "What's a risk you took that paid off?",
+  "Who in the industry would you love to collaborate with one day?",
+  "What does a supportive community of women in this industry mean to you?",
+];
+
+const STORE_KEY = 'colour-match-settings-v1';
+const $ = (id) => document.getElementById(id);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let settings = { rounds: 8, findSec: 30, talkSec: 180, questions: DEFAULT_QUESTIONS.slice() };
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+  if (saved && Array.isArray(saved.questions) && saved.questions.length) settings = { ...settings, ...saved };
+} catch (e) {}
+
+const state = {
+  round: 1, phase: 'idle', paused: false, remaining: 0, endsAt: 0, total: 0,
+  pairs: null, lastPairs: null, questions: [], deck: [], sound: true,
+};
+
+/* ---------- helpers ---------- */
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function fmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+
+// Pairings are symmetric: if Magenta meets Green, Green meets Magenta.
+// Five colours give 15 combinations (10 mixed pairs + 5 same-colour). A round-robin cycle of
+// 5 rounds covers every one exactly once: each round has 2 mixed pairs and 1 same-colour match.
+// Each cycle is freshly shuffled; later cycles avoid repeating any pair from the round just before.
+function makeCycle() {
+  const perm = shuffle([0, 1, 2, 3, 4]);
+  return shuffle([0, 1, 2, 3, 4]).map((r) => {
+    const map = Array(5);
+    const set = (a, b) => { map[perm[a]] = perm[b]; map[perm[b]] = perm[a]; };
+    set(r, r); set((r + 1) % 5, (r + 4) % 5); set((r + 2) % 5, (r + 3) % 5);
+    return map;
+  });
+}
+const sharesPair = (a, b) => a && b && a.some((v, i) => b[i] === v);
+function makeSchedule(rounds, out = []) {
+  while (out.length < rounds) {
+    let cycle = makeCycle();
+    for (let t = 0; t < 50 && sharesPair(out[out.length - 1], cycle[0]); t++) cycle = makeCycle();
+    out.push(...cycle);
+  }
+  return out;
+}
+function makePairs() {
+  // Extends the existing schedule if rounds are added mid-session, so earlier coverage is kept.
+  state.schedule = makeSchedule(Math.max(settings.rounds, state.round), state.schedule || []);
+  return state.schedule[state.round - 1];
+}
+
+function drawQuestions() {
+  const out = [];
+  while (out.length < 2 && settings.questions.length) {
+    if (!state.deck.length) state.deck = shuffle(settings.questions);
+    const q = state.deck.pop();
+    if (!out.includes(q) || settings.questions.length < 2) out.push(q);
+  }
+  return out;
+}
+
+/* ---------- sound ---------- */
+let audio = null;
+function ac() { if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (audio && audio.state === 'suspended') audio.resume(); return audio; }
+function tone(freq, start, dur, type = 'sine', vol = 0.18) {
+  if (!state.sound) return; const a = ac(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain(); const t = a.currentTime + start;
+  o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = {
+  tick: () => tone(1400, 0, 0.03, 'square', 0.03),
+  stop: () => { tone(520, 0, 0.12, 'triangle', 0.2); },
+  win:  () => { [660, 880, 1320].forEach((f, i) => tone(f, i * 0.09, 0.35, 'triangle', 0.16)); },
+  go:   () => { tone(880, 0, 0.5, 'sine', 0.22); tone(1320, 0.12, 0.6, 'sine', 0.14); },
+  end:  () => { [784, 659, 523].forEach((f, i) => tone(f, i * 0.28, 1.1, 'sine', 0.24)); },
+};
+
+/* ---------- reels ---------- */
+const reels = [];
+function cellHTML(idx) {
+  if (idx == null) return '<div class="cell"><span class="dot blank"></span><span>?</span></div>';
+  const c = COLOURS[idx];
+  return `<div class="cell"><span class="dot" style="background:${c.hex}"></span><span>${c.name}</span></div>`;
+}
+// Three rows, two reels each: every row is one pair. Reel order is row 1 left, row 1 right, row 2 left...
+function buildReels() {
+  const wrap = $('reels'); wrap.innerHTML = ''; reels.length = 0;
+  for (let r = 0; r < 3; r++) {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = `<div class="reel" aria-label="Pair ${r + 1}, first colour"><div class="strip">${cellHTML(null)}</div></div>
+      <span class="amp" aria-hidden="true">+</span>
+      <div class="reel" aria-label="Pair ${r + 1}, second colour"><div class="strip">${cellHTML(null)}</div></div>`;
+    wrap.appendChild(row);
+    row.querySelectorAll('.reel').forEach((el) => reels.push({ el, strip: el.querySelector('.strip'), current: null }));
+  }
+}
+// Turns a round's pairing map into 3 rows (2 mixed pairs + 1 same-colour pair), in random order and sides.
+function pairsToSlots(map) {
+  const rows = [];
+  map.forEach((v, i) => { if (v >= i) rows.push(Math.random() < 0.5 ? [i, v] : [v, i]); });
+  return shuffle(rows).flat();
+}
+
+let spinTicker = null;
+function spin() {
+  ac();
+  state.phase = 'spinning'; state.paused = false;
+  state.pairs = makePairs();
+  const slots = pairsToSlots(state.pairs);
+  state.questions = drawQuestions();
+  requestWakeLock();
+  render();
+  spinTicker = setInterval(sfx.tick, 85);
+  let landed = 0;
+  reels.forEach((r, i) => {
+    const filler = 14 + i * 3;
+    const seq = [r.current];
+    for (let k = 0; k < filler; k++) seq.push(Math.floor(Math.random() * 5));
+    seq.push(slots[i]);
+    r.strip.innerHTML = seq.map(cellHTML).join('');
+    r.el.classList.remove('landed'); r.el.classList.add('spinning');
+    r.strip.style.transition = 'none'; r.strip.style.transform = 'translateY(0)';
+    void r.strip.offsetHeight;
+    const dur = reduceMotion ? 250 + i * 80 : 1500 + i * 430;
+    r.strip.style.transition = `transform ${dur}ms cubic-bezier(.12,.65,.18,1)`;
+    r.strip.style.transform = `translateY(-${((seq.length - 1) / seq.length) * 100}%)`;
+    setTimeout(() => {
+      r.current = slots[i];
+      r.strip.style.transition = 'none'; r.strip.style.transform = 'translateY(0)';
+      r.strip.innerHTML = cellHTML(r.current);
+      r.el.classList.remove('spinning'); r.el.classList.add('landed');
+      sfx.stop();
+      if (++landed === reels.length) { clearInterval(spinTicker); sfx.win(); setTimeout(startFind, 450); }
+    }, dur + 30);
+  });
+}
+
+/* ---------- phases ---------- */
+function startTimer(ms) { state.total = ms; state.remaining = ms; state.endsAt = performance.now() + ms; state.paused = false; }
+function startFind() { state.phase = 'find'; startTimer(settings.findSec * 1000); render(); }
+function startTalk() { state.phase = 'talk'; startTimer(settings.talkSec * 1000); sfx.go(); render(); }
+function finishRound() { state.phase = 'done'; state.remaining = 0; sfx.end(); render(); }
+function nextRound() {
+  state.lastPairs = state.pairs;
+  if (state.round >= settings.rounds) { state.phase = 'end'; render(); return; }
+  state.round++; spin();
+}
+function restart() { state.round = 1; state.deck = []; state.lastPairs = null; state.schedule = null; state.phase = 'idle'; buildReels(); render(); }
+
+function primaryAction() {
+  if (state.phase === 'idle') spin();
+  else if (state.phase === 'done') nextRound();
+  else if (state.phase === 'end') restart();
+}
+function togglePause() {
+  if (state.phase !== 'find' && state.phase !== 'talk') return;
+  if (state.paused) { state.endsAt = performance.now() + state.remaining; state.paused = false; }
+  else { state.remaining = Math.max(0, state.endsAt - performance.now()); state.paused = true; }
+  render();
+}
+function skip() {
+  if (state.phase === 'find') startTalk();
+  else if (state.phase === 'talk') finishRound();
+}
+
+/* ---------- rendering ---------- */
+function qBlock() {
+  if (!state.questions.length) return '';
+  return `<div class="qlabel">Icebreakers</div><div class="qs">${state.questions.map((q, i) =>
+    `<div class="q"><b>${i + 1}</b><span></span></div>`).join('')}</div>`;
+}
+function fillQuestions() {
+  const spans = $('info').querySelectorAll('.q span');
+  spans.forEach((s, i) => { s.textContent = state.questions[i] || ''; });
+}
+function render() {
+  $('round-label').textContent = `Round ${state.round} of ${settings.rounds}`;
+  const info = $('info'); const p = state.phase; const next = state.round + 1;
+  let html = '';
+  if (p === 'idle') {
+    html = `<span class="pill">Get ready</span>
+      <div class="big">Round 1</div>
+      <p class="note">Everyone has a colour. When the reels stop, find the other colour in your pair. One colour pairs up with itself.</p>
+      <button class="primary" id="primary">Spin the colours</button>`;
+  } else if (p === 'spinning') {
+    html = `<span class="pill">Matching colours</span>
+      <div class="big">Round ${state.round}</div>
+      <p class="note">Find your colour on the board to see who you're meeting.</p>`;
+  } else if (p === 'find' || p === 'talk') {
+    const label = state.paused ? 'Paused' : (p === 'find' ? 'Find your match' : 'Talk time');
+    html = `<span class="pill${state.paused ? ' paused' : ''}">${label}</span>
+      <div class="time" id="time">${fmt(state.paused ? state.remaining : state.endsAt - performance.now())}</div>
+      <div class="bar"><i id="bar"></i></div>
+      ${qBlock()}`;
+  } else if (p === 'done') {
+    const last = state.round >= settings.rounds;
+    html = `<span class="pill">Time's up</span>
+      <div class="big">Thank your partner</div>
+      <p class="note">${last ? 'That was the final round.' : 'Get back to your spot ready for the next match.'}</p>
+      <button class="primary" id="primary">${last ? 'Finish' : `Spin round ${next}`}</button>`;
+  } else if (p === 'end') {
+    html = `<span class="pill">That's a wrap</span>
+      <div class="big">Thank you, everyone</div>
+      <p class="note">${settings.rounds} rounds of new connections. Keep the conversations going.</p>
+      <button class="primary" id="primary">Start again</button>`;
+  }
+  info.innerHTML = html;
+  fillQuestions();
+  updateClock();
+  fitInfo();
+  const timed = p === 'find' || p === 'talk';
+  $('t-pause').disabled = !timed; $('t-skip').disabled = !timed;
+  $('t-pause').setAttribute('aria-pressed', String(state.paused));
+}
+// Shrink the question text step by step until the right column fits inside the panel.
+function fitInfo() {
+  const info = $('info');
+  let size = 1.32;
+  info.style.setProperty('--qsize', size + 'cqw');
+  while (info.scrollHeight > info.clientHeight + 1 && size > 0.8) {
+    size = Math.round((size - 0.04) * 100) / 100;
+    info.style.setProperty('--qsize', size + 'cqw');
+  }
+}
+window.addEventListener('resize', fitInfo);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitInfo);
+
+function updateClock() {
+  if (state.phase !== 'find' && state.phase !== 'talk') return;
+  const rem = state.paused ? state.remaining : Math.max(0, state.endsAt - performance.now());
+  const t = $('time'), b = $('bar'); if (!t) return;
+  t.textContent = fmt(rem);
+  t.classList.toggle('low', state.phase === 'talk' && rem <= 10000);
+  t.classList.toggle('dim', state.paused);
+  b.style.width = (100 - (rem / state.total) * 100) + '%';
+}
+
+setInterval(() => {
+  if ((state.phase === 'find' || state.phase === 'talk') && !state.paused) {
+    if (performance.now() >= state.endsAt) { state.phase === 'find' ? startTalk() : finishRound(); }
+    else updateClock();
+  }
+}, 100);
+
+/* ---------- controls ---------- */
+$('info').addEventListener('click', (e) => { if (e.target.closest('#primary')) primaryAction(); });
+$('t-pause').onclick = togglePause;
+$('t-skip').onclick = skip;
+$('t-sound').onclick = () => {
+  state.sound = !state.sound;
+  $('t-sound').setAttribute('aria-pressed', String(!state.sound));
+  $('wave').style.display = state.sound ? '' : 'none';
+};
+$('t-full').onclick = () => {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else { const r = document.documentElement.requestFullscreen(); if (r && r.catch) r.catch(() => {}); }
+  } catch (e) {}
+};
+
+document.addEventListener('keydown', (e) => {
+  if (!$('sheet').hidden || /INPUT|TEXTAREA/.test(e.target.tagName)) { if (e.key === 'Escape') closeSettings(); return; }
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); primaryAction(); }
+  else if (e.key === 'p' || e.key === 'P') togglePause();
+  else if (e.key === 'n' || e.key === 'N') skip();
+  else if (e.key === 'f' || e.key === 'F') $('t-full').click();
+});
+
+// Hide the facilitator buttons and cursor when the mouse is still, so the projected screen stays clean.
+let idleTimer = null;
+function wake() { $('stage').classList.remove('idle-cursor'); clearTimeout(idleTimer); idleTimer = setTimeout(() => { if ($('sheet').hidden) $('stage').classList.add('idle-cursor'); }, 3000); }
+['mousemove', 'mousedown', 'touchstart', 'keydown'].forEach((ev) => document.addEventListener(ev, wake, { passive: true }));
+wake();
+
+let wakeLock = null;
+async function requestWakeLock() { try { if (!wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.phase !== 'idle') requestWakeLock(); });
+
+/* ---------- settings ---------- */
+const MAX_WORDS = 16;
+let qid = 0;
+function renumber() {
+  const rows = $('q-list').querySelectorAll('.qrow');
+  rows.forEach((r, i) => { r.querySelector('.qnum').textContent = i + 1; });
+  $('q-count').textContent = rows.length + (rows.length === 1 ? ' question' : ' questions');
+}
+function addQuestionRow(text = '', focus = false) {
+  const row = document.createElement('div'); row.className = 'qrow';
+  const id = 'q-item-' + (qid++);
+  row.innerHTML = `<span class="qnum"></span>
+    <input type="text" id="${id}" aria-label="Question" placeholder="Type a question">
+    <button type="button" class="qdel" aria-label="Remove question" title="Remove">×</button>`;
+  row.querySelector('input').value = text;
+  row.querySelector('.qdel').onclick = () => { row.remove(); renumber(); };
+  row.querySelector('input').addEventListener('input', (e) => {
+    const words = e.target.value.split(/\s+/);
+    if (words.filter(Boolean).length > MAX_WORDS) {
+      let n = 0; const kept = [];
+      for (const w of words) { if (w) n++; if (n > MAX_WORDS) break; kept.push(w); }
+      e.target.value = kept.join(' ').trimEnd();
+    }
+  });
+  row.querySelector('input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addQuestionRow('', true); }
+  });
+  $('q-list').appendChild(row); renumber();
+  if (focus) { row.querySelector('input').focus(); row.scrollIntoView({ block: 'nearest' }); }
+}
+function fillQuestionRows(list) { $('q-list').innerHTML = ''; list.forEach((q) => addQuestionRow(q)); }
+
+function openSettings() {
+  $('s-rounds').value = settings.rounds; $('s-find').value = settings.findSec; $('s-talk').value = settings.talkSec / 60;
+  fillQuestionRows(settings.questions);
+  $('sheet').hidden = false; $('s-rounds').focus();
+}
+function closeSettings() { $('sheet').hidden = true; }
+$('t-settings').onclick = openSettings;
+$('s-cancel').onclick = closeSettings;
+$('q-add').onclick = () => addQuestionRow('', true);
+$('s-reset').onclick = () => fillQuestionRows(DEFAULT_QUESTIONS);
+$('settings-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const qs = [...$('q-list').querySelectorAll('input')]
+    .map((i) => i.value.trim().split(/\s+/).slice(0, MAX_WORDS).join(' ')).filter(Boolean);
+  settings.rounds = Math.min(20, Math.max(1, parseInt($('s-rounds').value, 10) || 8));
+  settings.findSec = Math.min(300, Math.max(5, parseInt($('s-find').value, 10) || 30));
+  settings.talkSec = Math.round(Math.min(20, Math.max(0.5, parseFloat($('s-talk').value) || 3)) * 60);
+  settings.questions = qs.length ? qs : DEFAULT_QUESTIONS.slice();
+  state.deck = [];
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (err) {}
+  closeSettings(); render();
+});
+
+buildReels();
+render();
+</script>
+</body>
+</html>
